@@ -1,137 +1,108 @@
-<app-header></app-header>
 
-<ng-template #headerTmpl>
-  <div nz-row nzJustify="space-between">
-    <div nz-col nzFlex="initial">
-      <div nz-row>
-        <div nz-col>
-          <input
-            placeholder="ძებნა"
-            nz-input
-            [ngModel]="search"
-            (ngModelChange)="filter($event)"
-          />
-        </div>
-        <a nz-button nzType="link" (click)="advancedFilter = !advancedFilter">გაფართოებული ძიება</a>
+<!--<mat-card>-->
+<!--  <h2>Edit Profile</h2>-->
+
+<!--  <form [formGroup]="profileForm" (ngSubmit)="onSubmit()" novalidate>-->
+<!--    <mat-form-field appearance="fill">-->
+<!--      <mat-label>First Name</mat-label>-->
+<!--      <input matInput formControlName="firstName" required />-->
+<!--      <mat-error *ngIf="profileForm.get('firstName')?.invalid && profileForm.get('firstName')?.touched">-->
+<!--        First Name is required.-->
+<!--      </mat-error>-->
+<!--    </mat-form-field>-->
+
+<!--    <mat-form-field appearance="fill">-->
+<!--      <mat-label>Last Name</mat-label>-->
+<!--      <input matInput formControlName="lastName" required />-->
+<!--      <mat-error *ngIf="profileForm.get('lastName')?.invalid && profileForm.get('lastName')?.touched">-->
+<!--        Last Name is required.-->
+<!--      </mat-error>-->
+<!--    </mat-form-field>-->
+
+<!--    <mat-form-field appearance="fill">-->
+<!--      <mat-label>Email</mat-label>-->
+<!--      <input matInput formControlName="email" type="email" required />-->
+<!--      <mat-error *ngIf="profileForm.get('email')?.invalid && profileForm.get('email')?.touched">-->
+<!--        Please enter a valid email.-->
+<!--      </mat-error>-->
+<!--    </mat-form-field>-->
+
+<!--    <mat-form-field appearance="fill">-->
+<!--      <mat-label>Phone Number</mat-label>-->
+<!--      <input matInput formControlName="phone" type="text" />-->
+<!--      <mat-error *ngIf="profileForm.get('phone')?.hasError('pattern')">-->
+<!--        Phone number should contain only numbers.-->
+<!--      </mat-error>-->
+<!--    </mat-form-field>-->
+
+<!--    <div>-->
+<!--      <label>Profile Picture:</label>-->
+<!--      <input type="file" (change)="onFileSelected($event)" />-->
+<!--      <img *ngIf="profileImageUrl" [src]="profileImageUrl" alt="Profile Preview" width="100" />-->
+<!--    </div>-->
+
+<!--    <div class="button-group">-->
+<!--      <button mat-raised-button color="primary" type="submit" [disabled]="profileForm.invalid || isSubmitting">-->
+<!--        Save-->
+<!--      </button>-->
+<!--      <button mat-button color="warn" (click)="onCancel()">Cancel</button>-->
+<!--    </div>-->
+
+<!--    <mat-spinner *ngIf="isSubmitting"></mat-spinner>-->
+<!--  </form>-->
+<!--</mat-card>-->
+
+<div class="profile-container">
+  <h2>Edit Profile</h2>
+
+  <form [formGroup]="profileForm" (ngSubmit)="onSubmit()" class="profile-form" novalidate>
+    <div class="form-group">
+      <label for="firstName">First Name</label>
+      <input type="text" id="firstName" formControlName="firstName" required />
+      <div class="error" *ngIf="profileForm.get('firstName')?.invalid && profileForm.get('firstName')?.touched">
+        First Name is required.
       </div>
-
     </div>
-    <div nz-col nzFlex="initial">
-      <button nz-button nzType="primary" (click)="add()">
-        <i nz-icon nzType="plus"></i>
-        დამატება
+
+    <div class="form-group">
+      <label for="lastName">Last Name</label>
+      <input type="text" id="lastName" formControlName="lastName" required />
+      <div class="error" *ngIf="profileForm.get('lastName')?.invalid && profileForm.get('lastName')?.touched">
+        Last Name is required.
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" formControlName="email" required />
+      <div class="error" *ngIf="profileForm.get('email')?.invalid && profileForm.get('email')?.touched">
+        Please enter a valid email.
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="phone">Phone Number</label>
+      <input type="text" id="phone" formControlName="phone" />
+      <div class="error" *ngIf="profileForm.get('phone')?.hasError('pattern')">
+        Phone number should contain only numbers.
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Profile Picture</label>
+      <input type="file" (change)="onFileSelected($event)" />
+      <div class="image-preview" *ngIf="profileImageUrl">
+        <img [src]="profileImageUrl" alt="Profile Picture Preview" />
+      </div>
+    </div>
+
+    <div class="button-group">
+      <button type="submit" [disabled]="profileForm.invalid || isSubmitting" class="btn btn-primary">
+        Save
       </button>
+      <button type="button" class="btn btn-secondary" (click)="onCancel()">Cancel</button>
     </div>
-  </div>
 
-  @if (advancedFilter){
-  <nz-divider></nz-divider>
-  <div nz-row [nzGutter]="10" [formGroup]="searchForm">
-    <div nz-col nzFlex="initial">
-      <input
-        placeholder="სახელი"
-        nz-input
-        formControlName="firstName"
-      />
-    </div>
-    <div nz-col nzFlex="initial">
-      <input
-        placeholder="გვარი"
-        nz-input
-        formControlName="lastName"
-      />
-    </div>
-    <div nz-col nzFlex="initial">
-      <input
-        placeholder="პირადი ნომერი"
-        nz-input
-        formControlName="personalNumber"
-      />
-    </div>
-    <div nz-col nzFlex="initial">
-      <input
-        placeholder="მობილური"
-        nz-input
-        formControlName="phoneNumber"
-      />
-    </div>
-    <div nz-col nzFlex="initial">
-      <input
-        placeholder="იურიდიული მისამართი"
-        nz-input
-        formControlName="legalAddress"
-      />
-    </div>
-    <div nz-col nzFlex="initial">
-      <input
-        placeholder="ფაქტიური მისამართი"
-        nz-input
-        formControlName="actualAddress"
-      />
-    </div>
-    <div nz-col nzFlex="initial">
-      <nz-space>
-        <button *nzSpaceItem nz-button nzType="primary" (click)="advancedSearch()">
-          <i nz-icon nzType="search"></i>
-          ძებნა
-        </button>
-
-        <button *nzSpaceItem  nz-button nzType="default" (click)="resetSearch()">
-          <i nz-icon nzType="close"></i>
-          გასუფთავება
-        </button>
-      </nz-space>
-    </div>
-  </div>
-  }
-</ng-template>
-
-<nz-table
-  [nzTitle]="headerTmpl"
-  #customersTable
-  [nzData]="(customers$ | async)?.data || []"
-  nzShowSizeChanger
-  [nzFrontPagination]="false"
-  [nzTotal]="total"
-  [nzPageSize]="pageSize"
-  [nzPageIndex]="page"
-  (nzQueryParams)="paginationChange($event)"
->
-  <thead>
-  <tr>
-    @for (column of columns;track column.columnKey) {
-    <th [nzColumnKey]="column.columnKey" [nzShowSort]="column.sort" [nzSortFn]="column.sort">{{ column.name }}</th>
-    }
-  </tr>
-  </thead>
-  <tbody>
-  @for (data of customersTable.data;track data.id) {
-  <tr>
-    @for (column of columns;track  column.columnKey) {
-  <td>
-    @if (column.columnKey === 'actions') {
-    <button
-                (click)="add(data.id)"
-                nz-button
-
-              >
-                <span nz-icon nzType="edit" nzTheme="outline"></span>
-              </button>
-
-              <button
-                (click)="delete(data.id)"
-                nz-button
-                nzDanger
-              >
-                <span nz-icon nzType="delete"></span>
-              </button>
-    } @else {
-    {{ data && data[column?.columnKey] }}
-    }
-  </td>
-  }
-
-  </tr>
-  }
-  </tbody>
-</nz-table>
+    <div *ngIf="isSubmitting" class="loading">Saving...</div>
+  </form>
+</div>

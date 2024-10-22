@@ -1,186 +1,102 @@
 import {ChangeDetectionStrategy, Component, inject} from "@angular/core";
-import {ActivatedRoute, Router, RouterModule} from "@angular/router";
-import {map, Observable, switchMap, tap} from "rxjs";
-import {PaginationResponse, User} from "../../models";
-import {UserService} from "../../services";
-import {AsyncPipe, CommonModule, DatePipe} from "@angular/common";
-import {NzTableModule, NzTableQueryParams} from "ng-zorro-antd/table";
-import {NzDividerComponent} from "ng-zorro-antd/divider";
-import {HeaderComponent} from "../../shared/header/header.component";
-import {NzPaginationComponent} from "ng-zorro-antd/pagination";
+import {Router, RouterModule} from "@angular/router";
+import { CommonModule, DatePipe} from "@angular/common";
 import {NzModalService} from "ng-zorro-antd/modal";
-import {AddOrEditCustomersComponent} from "./add-or-edit-customers/add-or-edit-customers.component";
-import {FormControl, FormGroup, FormsModule, ReactiveFormsModule} from "@angular/forms";
-import {NzInputModule} from "ng-zorro-antd/input";
-import {NzEmptyComponent} from "ng-zorro-antd/empty";
-import {NzGridModule} from "ng-zorro-antd/grid";
-import {NzButtonModule} from "ng-zorro-antd/button";
-import {NzIconModule} from "ng-zorro-antd/icon";
-import {columns} from "./customers-columns";
-import {NzSpaceComponent, NzSpaceItemDirective} from "ng-zorro-antd/space";
+import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from "@angular/forms";
+import {MatFormField, MatFormFieldModule} from "@angular/material/form-field";
+import {MatProgressSpinner} from "@angular/material/progress-spinner";
+import {MatCard, MatCardModule} from "@angular/material/card";
+import {MatButtonModule} from "@angular/material/button";
+import {MatInputModule} from "@angular/material/input";
+import {UserProfileService} from "../../services";
 
 
 @Component({
-  selector: 'app-customers',
-  standalone: true,
-  templateUrl: 'customers.component.html',
-  imports: [
-    CommonModule,
-    AsyncPipe,
-    RouterModule,
-    NzTableModule,
-    NzDividerComponent,
-    HeaderComponent,
-    NzPaginationComponent,
-    AddOrEditCustomersComponent,
-    FormsModule,
-    NzInputModule,
-    NzEmptyComponent,
-    NzGridModule,
-    NzButtonModule,
-    NzIconModule,
-    ReactiveFormsModule,
-    NzSpaceComponent,
-    NzSpaceItemDirective
-  ],
-  providers: [NzModalService, DatePipe],
-  styleUrl: 'customers.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'app-user',
+    standalone: true,
+    templateUrl: 'user.component.html',
+    imports: [
+        CommonModule,
+        RouterModule,
+        FormsModule,
+        MatFormField,
+        MatProgressSpinner,
+        MatCard,
+        MatCardModule,
+        MatFormFieldModule,
+        MatInputModule,
+        MatButtonModule,
+        ReactiveFormsModule,
+    ],
+    providers: [NzModalService, DatePipe],
+    styleUrl: 'user.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class CustomersComponent {
-  modal: NzModalService = inject(NzModalService)
-  customerService: UserService = inject(UserService)
-  route: ActivatedRoute = inject(ActivatedRoute)
-  router: Router = inject(Router)
-  datepipe: DatePipe = inject(DatePipe)
+export class UserComponent {
 
-  page = 1
-  pageSize = 10
-  total = 0
-  sortBy = 'createdAt';
-  order: 'ASC' | 'DESC' = 'DESC';
-  search: string | null = null;
-  searchQuery: any = null;
 
-  advancedFilter = false;
 
-  columns = columns
+    profileForm: FormGroup;
+    isSubmitting = false;
+    profileImageUrl: string | ArrayBuffer | null = null;  // Initialized with null
+    selectedFile: File | null = null;
 
-  searchForm: FormGroup = new FormGroup({
-    clientNumber: new FormControl(null),
-    firstName: new FormControl(null),
-    lastName: new FormControl(null),
-    phoneNumber: new FormControl(null),
-    personalNumber: new FormControl(null),
-    legalAddress: new FormControl(null),
-    actualAddress: new FormControl(null),
-  })
+    constructor(
+        private fb: FormBuilder,
+        private userProfileService: UserProfileService,
+        private router: Router
+    ) {
+        this.profileForm = this.fb.group({
+            firstName: ['', Validators.required],
+            lastName: ['', Validators.required],
+            email: ['', [Validators.required, Validators.email]],
+            phone: ['', Validators.pattern('^[0-9]*$')]
+        });
+    }
 
-  customers$: Observable<PaginationResponse<User>> = this.route.queryParams.pipe(
-    tap((route) => {
-      this.page = route['page'] || this.page;
-      this.pageSize = route['pageSize'] || this.pageSize;
-      this.sortBy = route['orderBy'] || this.sortBy;
-      this.order = route['order'] || this.order;
-      this.searchQuery = route['searchQuery'] || this.searchQuery;
-    }),
-    switchMap((params) => {
-      return this.customerService
-        .getCustomers(params).pipe(
-          map((res: PaginationResponse<User>) => {
-            return {
-              ...res,
-              data: res.data.map((item: User) => ({
-                ...item,
-                legalAddress: `${item.legalCountry}, ${item.legalCity}, ${item.legalAddress}`,
-                actualAddress: `${item.actualCountry}, ${item.actualCity}, ${item.actualAddress}`,
-                createdAt: this.datepipe.transform(item.createdAt, 'dd/MM/yyyy HH:mm'),
-              })) as User[]
+    ngOnInit() {
+        this.userProfileService.getUserProfile().subscribe((data) => {
+            this.profileForm.patchValue(data);
+            if (data.profileImage) {
+                this.profileImageUrl = data.profileImage || null;  // Ensure it’s not undefined
             }
-          }),
-          tap(
-            (res) => {
-              this.total = res.total || 0;
-            }
-          )
-        )
-    })
-  )
-
-
-  paginationChange(
-    params: NzTableQueryParams
-  ) {
-    const {pageSize, pageIndex, sort} = params;
-    const currentSort = sort.find(item => item.value !== null);
-    if (currentSort) {
-      this.sortBy = (currentSort && currentSort.key);
-      this.order = (currentSort && currentSort.value) === 'ascend' ? 'ASC' : 'DESC';
+        });
     }
-    this.routeChange({
-      page: pageIndex,
-      pageSize: pageSize,
-      sortBy: this.sortBy,
-      order: this.order
-    })
-  }
 
-  filter(value: any) {
-    if (value) {
-      this.searchQuery = value;
-    } else {
-      this.searchQuery = null;
+    onFileSelected(event: Event) {
+        const input = event.target as HTMLInputElement;
+        if (input.files && input.files[0]) {
+            this.selectedFile = input.files[0];
+            const reader = new FileReader();
+            reader.onload = (e: ProgressEvent<FileReader>) => {
+                this.profileImageUrl = e.target?.result ?? null;  // Handle undefined gracefully
+            };
+            reader.readAsDataURL(this.selectedFile);
+        }
     }
-    this.routeChange({
-      searchQuery: this.searchQuery,
-      page: 1
-    })
-  }
 
-  advancedSearch() {
-    if (this.searchForm.value) {
-      this.routeChange({...this.searchForm.value, page: 1})
+    onSubmit() {
+        if (this.profileForm.invalid) return;
+
+        this.isSubmitting = true;
+        const formData = new FormData();
+        formData.append('profileData', JSON.stringify(this.profileForm.value));
+
+        if (this.selectedFile) {
+            formData.append('profileImage', this.selectedFile);
+        }
+
+        this.userProfileService.updateUserProfile(formData).subscribe({
+            next: () => {
+                alert('Profile updated successfully!');
+                this.router.navigate(['/']);
+            },
+            error: () => alert('Failed to update profile.'),
+            complete: () => (this.isSubmitting = false)
+        });
     }
-  }
 
-  resetSearch() {
-    this.searchForm.reset();
-    this.routeChange({...this.searchForm.value, page: 1})
-  }
-
-  add(id?: number) {
-    this.modal.create({
-      nzTitle: 'დამატება/რედაქტირება',
-      nzContent: AddOrEditCustomersComponent,
-      nzWidth: '750px',
-      nzData: {
-        account: id && this.getCustomerById(id)
-      },
-      nzOnOk: () => {
-        this.router.navigate(['/customers']).then()
-      }
-    });
-  }
-
-  getCustomerById(id: number): Observable<User> {
-    return this.customerService.getCustomerById(id)
-  }
-
-  delete(id: number) {
-    this.customerService.deleteCustomer(id).subscribe(res => {
-      this.router.navigate(['/customers']).then()
-    })
-  }
-
-  routeChange(params: any) {
-    this.router.navigate(['.'], {
-      queryParams: {
-        ...this.route.snapshot.queryParams,
-        ...params
-      },
-      queryParamsHandling: 'merge',
-      relativeTo: this.route
-    }).then()
-  }
-
+    onCancel() {
+        this.router.navigate(['/']);
+    }
 }
