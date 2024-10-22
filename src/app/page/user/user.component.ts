@@ -1,14 +1,9 @@
-import {ChangeDetectionStrategy, Component, inject} from "@angular/core";
-import {Router, RouterModule} from "@angular/router";
-import { CommonModule, DatePipe} from "@angular/common";
-import {NzModalService} from "ng-zorro-antd/modal";
-import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from "@angular/forms";
-import {MatFormField, MatFormFieldModule} from "@angular/material/form-field";
-import {MatProgressSpinner} from "@angular/material/progress-spinner";
-import {MatCard, MatCardModule} from "@angular/material/card";
-import {MatButtonModule} from "@angular/material/button";
-import {MatInputModule} from "@angular/material/input";
-import {UserProfileService} from "../../services";
+import {ChangeDetectionStrategy, Component, OnInit} from "@angular/core";
+import {UserService} from "../../services";
+import {CommonModule} from "@angular/common";
+import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from "@angular/forms";
+
+
 
 
 @Component({
@@ -17,86 +12,93 @@ import {UserProfileService} from "../../services";
     templateUrl: 'user.component.html',
     imports: [
         CommonModule,
-        RouterModule,
-        FormsModule,
-        MatFormField,
-        MatProgressSpinner,
-        MatCard,
-        MatCardModule,
-        MatFormFieldModule,
-        MatInputModule,
-        MatButtonModule,
-        ReactiveFormsModule,
+        ReactiveFormsModule
+
     ],
-    providers: [NzModalService, DatePipe],
     styleUrl: 'user.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class UserComponent {
-
-
-
+export class UserComponent implements OnInit {
     profileForm: FormGroup;
-    isSubmitting = false;
-    profileImageUrl: string | ArrayBuffer | null = null;  // Initialized with null
-    selectedFile: File | null = null;
+    loading = false;
+    profilePicturePreview: string | ArrayBuffer | null = null;
 
-    constructor(
-        private fb: FormBuilder,
-        private userProfileService: UserProfileService,
-        private router: Router
-    ) {
+    constructor(private fb: FormBuilder, private userService: UserService) {
         this.profileForm = this.fb.group({
             firstName: ['', Validators.required],
             lastName: ['', Validators.required],
             email: ['', [Validators.required, Validators.email]],
-            phone: ['', Validators.pattern('^[0-9]*$')]
+            phone: ['', [Validators.pattern(/^\d+$/)]],
+            profilePicture: ['null'],
         });
+        this.profilePicturePreview = 'assets/img/profile-picture.jpg';
+
     }
 
-    ngOnInit() {
-        this.userProfileService.getUserProfile().subscribe((data) => {
-            this.profileForm.patchValue(data);
-            if (data.profileImage) {
-                this.profileImageUrl = data.profileImage || null;  // Ensure it’s not undefined
-            }
+    ngOnInit(): void {
+        this.userService.getUserProfile().subscribe((userData) => {
+            this.profileForm.patchValue(userData);
+            this.profilePicturePreview = userData.profilePicture || 'assets/img/profile-picture'; // Use default if not provided
         });
     }
-
-    onFileSelected(event: Event) {
-        const input = event.target as HTMLInputElement;
-        if (input.files && input.files[0]) {
-            this.selectedFile = input.files[0];
+    onProfilePictureChange(event: any): void {
+        const file = event.target.files[0];
+        if (file) {
             const reader = new FileReader();
-            reader.onload = (e: ProgressEvent<FileReader>) => {
-                this.profileImageUrl = e.target?.result ?? null;  // Handle undefined gracefully
+            reader.onload = (e) => {
+                const image = new Image();
+                image.src = e.target?.result as string;
+
+                image.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 150; // Set width to 150
+                    canvas.height = 150; // Set height to 150
+
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.drawImage(image, 0, 0, 150, 150); // Resize the image to 150x150
+                        const resizedImageDataUrl = canvas.toDataURL('image/jpeg');
+                        this.profilePicturePreview = resizedImageDataUrl; // Update preview
+                        this.profileForm.get('profilePicture')?.setValue(this.dataURLToBlob(resizedImageDataUrl)); // Update form control
+                    }
+                };
             };
-            reader.readAsDataURL(this.selectedFile);
+            reader.readAsDataURL(file);
         }
     }
 
-    onSubmit() {
+    dataURLToBlob(dataURL: string): Blob {
+        const byteString = atob(dataURL.split(',')[1]);
+        const mimeString = dataURL.split(',')[0].split(':')[1].split(';')[0];
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+        return new Blob([ab], { type: mimeString });
+    }
+
+    onSubmit(): void {
         if (this.profileForm.invalid) return;
 
-        this.isSubmitting = true;
+        this.loading = true;
         const formData = new FormData();
-        formData.append('profileData', JSON.stringify(this.profileForm.value));
+        const formValues = this.profileForm.value;
 
-        if (this.selectedFile) {
-            formData.append('profileImage', this.selectedFile);
+        for (const key in formValues) {
+            formData.append(key, formValues[key]);
         }
 
-        this.userProfileService.updateUserProfile(formData).subscribe({
-            next: () => {
+        this.userService.updateUserProfile(formData).subscribe(
+            (response) => {
+                console.log(response.message);
+                this.loading = false;
                 alert('Profile updated successfully!');
-                this.router.navigate(['/']);
             },
-            error: () => alert('Failed to update profile.'),
-            complete: () => (this.isSubmitting = false)
-        });
-    }
-
-    onCancel() {
-        this.router.navigate(['/']);
+            (error) => {
+                console.error('Update failed:', error);
+                this.loading = false;
+            }
+        );
     }
 }
