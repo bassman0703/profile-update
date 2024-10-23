@@ -8,7 +8,7 @@ import { delay } from 'rxjs/operators';
 export class UserService {
   private mockUserData = {
     firstName: 'davit',
-    lastName: 'jmuikhadze',
+    lastName: 'jmukhadze',
     email: 'davitijmukhadze@gmail.com',
     phone: '598088238',
     profilePicture: 'assets/img/profile-picture.jpg',
