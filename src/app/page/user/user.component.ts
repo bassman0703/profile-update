@@ -1,47 +1,52 @@
-import {ChangeDetectionStrategy, Component, OnInit} from "@angular/core";
+import {ChangeDetectionStrategy, Component, inject, OnDestroy, OnInit, signal} from "@angular/core";
 import {UserService} from "../../services";
 import {CommonModule} from "@angular/common";
-import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from "@angular/forms";
-
-
+import { FormControl, FormGroup, ReactiveFormsModule, Validators} from "@angular/forms";
+import {catchError, Subject, takeUntil, throwError} from "rxjs";
 
 
 @Component({
     selector: 'app-user',
     standalone: true,
-    templateUrl: 'user.component.html',
+    templateUrl: './user.component.html',
     imports: [
         CommonModule,
         ReactiveFormsModule
 
     ],
-    styleUrl: 'user.component.scss',
+    styleUrl: './user.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class UserComponent implements OnInit {
-    profileForm: FormGroup;
-    loading = false;
-    profilePicturePreview: string | ArrayBuffer | null = null;
+export class UserComponent implements OnDestroy, OnInit {
+    private userService: UserService = inject(UserService)
 
-    constructor(private fb: FormBuilder, private userService: UserService) {
-        this.profileForm = this.fb.group({
-            firstName: ['', Validators.required],
-            lastName: ['', Validators.required],
-            email: ['', [Validators.required, Validators.email]],
-            phone: ['', [Validators.pattern(/^\d+$/)]],
-            profilePicture: ['null'],
-        });
-        this.profilePicturePreview = 'assets/img/profile-picture.jpg';
+    profileForm: FormGroup = new FormGroup<any>({
+        firstName: new FormControl('', Validators.required),
+        lastName: new FormControl('', Validators.required),
+        email: new FormControl('', [Validators.required, Validators.email]),
+        phone: new FormControl('', [Validators.pattern(/^\d+$/)]),
+        profilePicture: new FormControl(null),
+    })
 
-    }
+    sub$ = new Subject()
+
+    loading = signal(false);
+    profilePictureUploading = signal(false);
+    profilePicturePreview = signal('assets/img/user.png');
+
+
 
     ngOnInit(): void {
-        this.userService.getUserProfile().subscribe((userData) => {
+        this.userService.getUserProfile()
+            .pipe(takeUntil(this.sub$))
+            .subscribe((userData) => {
             this.profileForm.patchValue(userData);
-            this.profilePicturePreview = userData.profilePicture || 'assets/img/profile-picture'; // Use default if not provided
+            this.profilePicturePreview.set(userData.profilePicture)
         });
     }
+
     onProfilePictureChange(event: any): void {
+        this.profilePictureUploading.set(true)
         const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
@@ -58,10 +63,15 @@ export class UserComponent implements OnInit {
                     if (ctx) {
                         ctx.drawImage(image, 0, 0, 150, 150); // Resize the image to 150x150
                         const resizedImageDataUrl = canvas.toDataURL('image/jpeg');
-                        this.profilePicturePreview = resizedImageDataUrl; // Update preview
+                        this.profilePicturePreview.set(resizedImageDataUrl)
                         this.profileForm.get('profilePicture')?.setValue(this.dataURLToBlob(resizedImageDataUrl)); // Update form control
+
                     }
                 };
+
+                setTimeout(() => {
+                    this.profilePictureUploading.set(false)
+                }, 1000)
             };
             reader.readAsDataURL(file);
         }
@@ -75,13 +85,14 @@ export class UserComponent implements OnInit {
         for (let i = 0; i < byteString.length; i++) {
             ia[i] = byteString.charCodeAt(i);
         }
-        return new Blob([ab], { type: mimeString });
+        return new Blob([ab], {type: mimeString});
     }
 
     onSubmit(): void {
+        console.log(this.profileForm)
         if (this.profileForm.invalid) return;
 
-        this.loading = true;
+        this.loading.set(true)
         const formData = new FormData();
         const formValues = this.profileForm.value;
 
@@ -89,16 +100,27 @@ export class UserComponent implements OnInit {
             formData.append(key, formValues[key]);
         }
 
-        this.userService.updateUserProfile(formData).subscribe(
+        this.userService.updateUserProfile(formData)
+            .pipe(
+                catchError((error) => {
+                    this.loading.set(false)
+                    return throwError(() => error)
+                })
+            )
+            .subscribe(
             (response) => {
                 console.log(response.message);
-                this.loading = false;
+                setTimeout(() => {
+                    this.loading.set(false)
+                }, 1000)
                 alert('Profile updated successfully!');
             },
-            (error) => {
-                console.error('Update failed:', error);
-                this.loading = false;
-            }
+
         );
+    }
+
+    ngOnDestroy() {
+        this.sub$.next(null)
+        this.sub$.complete()
     }
 }

@@ -56,20 +56,24 @@
     </div>
 
     <div class="form-group">
-      <label for="profilePicture">Profile Picture (Optional)</label>
+      <label >Profile Picture (Optional)</label>
       <input
-              id="profilePicture"
+              #profilePicture
               type="file"
               (change)="onProfilePictureChange($event)"
-              class="form-control"
+              class="form-control hidden"
       />
-      <div *ngIf="profilePicturePreview" class="image-preview">
-        <img [src]="profilePicturePreview" alt="Profile Picture Preview" style="width: 150px; height: 150px;" />
+      <div  class="image-preview" (click)="profilePicture.click()">
+        @if(profilePictureUploading()){
+            <div>Uploading...</div>
+        } @else {
+        <img [src]="profilePicturePreview()" alt="Profile Picture Preview" style="width: 150px; height: 150px;" />
+        }
       </div>
     </div>
 
     <div class="form-actions">
-      <button type="submit" [disabled]="loading || profileForm.invalid" class="btn btn-save">
+      <button type="submit" class="btn btn-save">
         Save
       </button>
       <button type="button" routerLink="/" class="btn btn-cancel">
@@ -77,8 +81,11 @@
       </button>
     </div>
 
-    <div *ngIf="loading " class="loading-spinner">
-      <p>Saving...</p>
-    </div>
+
   </form>
 </div>
+@if(loading()){
+<div class="loading-spinner">
+  <p>Saving...</p>
+</div>
+}

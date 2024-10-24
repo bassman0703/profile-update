@@ -11,7 +11,7 @@ export class UserService {
     lastName: 'jmukhadze',
     email: 'davitijmukhadze@gmail.com',
     phone: '598088238',
-    profilePicture: 'assets/img/profile-picture.jpg',
+    profilePicture: 'assets/img/user.png',
   };
 
   getUserProfile(): Observable<any> {

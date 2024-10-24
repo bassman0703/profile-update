@@ -1,90 +1,91 @@
-import { UserComponent } from "./user.component";
-import { CommonModule } from "@angular/common";
-import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { ReactiveFormsModule } from "@angular/forms";
-import { UserService } from "../../services";
-import { of } from "rxjs";
+import { TestBed, ComponentFixture } from '@angular/core/testing';
+import { UserComponent } from './user.component';
+import { UserService } from '../../services';
+import { ReactiveFormsModule } from '@angular/forms';
+import { of } from 'rxjs';
+import { DebugElement } from '@angular/core';
+
+class MockUserService {
+    getUserProfile = jasmine.createSpy('getUserProfile').and.returnValue(
+        of({
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'john.doe@example.com',
+            phone: '1234567890',
+            profilePicture: null,
+        })
+    );
+
+    updateUserProfile = jasmine.createSpy().and.returnValue(of({ message: 'Profile updated!' }));
+}
 
 describe('UserComponent', () => {
     let component: UserComponent;
     let fixture: ComponentFixture<UserComponent>;
-    let mockUserService: any; // Type for the mocked UserService
+    let userService: MockUserService;
+    let el: DebugElement;
 
     beforeEach(async () => {
-        mockUserService = {
-            getUserProfile: jasmine.createSpy('getUserProfile').and.returnValue(of({
-                firstName: 'davit',
-                lastName: 'jmukhadze',
-                email: 'davitijmukhadze@gmail.com',
-                phone: '598088238',
-                profilePicture: 'assets/img/profile-picture.jpg',
-            }))
-        };
-
         await TestBed.configureTestingModule({
-            declarations: [UserComponent],
-            imports: [CommonModule, ReactiveFormsModule],
-            providers: [{ provide: UserService, useValue: mockUserService }]
-        })
-            .compileComponents();
+            imports: [UserComponent, ReactiveFormsModule],
+            providers: [{ provide: UserService, useClass: MockUserService }]
+        }).compileComponents();
 
         fixture = TestBed.createComponent(UserComponent);
         component = fixture.componentInstance;
-        fixture.detectChanges(); // Initial change detection to trigger ngOnInit
+        userService = TestBed.inject(UserService) as  unknown as MockUserService;
+        el = fixture.debugElement;
+        fixture.detectChanges(); // Trigger initial data binding
     });
 
-    it('should create', () => {
+    it('should create the component', () => {
         expect(component).toBeTruthy();
     });
 
-    it('should initialize profile form with empty values', () => {
-        expect(component.profileForm.get('firstName')?.value).toEqual('');
-        expect(component.profileForm.get('lastName')?.value).toEqual('');
-        expect(component.profileForm.get('email')?.value).toEqual('');
-        expect(component.profileForm.get('phone')?.value).toEqual('');
-        expect(component.profileForm.get('profilePicture')?.value).toEqual('null');
+    it('should initialize the form with user data on ngOnInit', () => {
+        component.ngOnInit();
+        expect(userService.getUserProfile).toHaveBeenCalled();
+        expect(component.profileForm.value).toEqual({
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'john.doe@example.com',
+            phone: '1234567890',
+            profilePicture: null // Form control default value
+        });
+        expect(component.profilePicturePreview()).toBeNull();
     });
 
-    it('should set initial profile picture preview', () => {
-        expect(component.profilePicturePreview).toEqual('assets/img/profile-picture.jpg');
+    it('should mark the form invalid when required fields are empty', () => {
+        component.profileForm.reset();
+        expect(component.profileForm.invalid).toBeTrue();
     });
 
-    it('should patch form with user data on init (mocked service)', () => {
-        component.ngOnInit(); // Call ngOnInit to patch the form with user data
 
-        expect(component.profileForm.get('firstName')?.value).toEqual('');
-        expect(component.profileForm.get('lastName')?.value).toEqual('');
-        expect(component.profileForm.get('email')?.value).toEqual('');
-        expect(component.profileForm.get('phone')?.value).toEqual('');
-        expect(component.profileForm.get('profilePicture')?.value).toEqual('null');
-        expect(component.profilePicturePreview).toEqual('assets/img/profile-picture.jpg');
+    it('should call updateUserProfile on valid form submission', () => {
+        component.profileForm.setValue({
+            firstName: 'Jane',
+            lastName: 'Doe',
+            email: 'jane.doe@example.com',
+            phone: '0987654321',
+            profilePicture: null
+        });
+
+        component.onSubmit();
+        expect(userService.updateUserProfile).toHaveBeenCalled();
+        expect(component.loading()).toBeTrue();
     });
 
-    it('should update profile picture preview on file change', () => {
-        const mockFile = new File(['test content'], 'test.jpg', { type: 'image/jpeg' });
-        const event = { target: { files: [mockFile] } }; // Properly mock the file input event
-
-        component.onProfilePictureChange(event);
-
-        // Trigger change detection after asynchronous operations
-        fixture.detectChanges();
-
-        expect(component.profilePicturePreview).not.toEqual('assets/img/profile-picture.jpg'); // Preview should change
-        expect(component.profilePicturePreview).toContain('data:image/jpeg'); // Check if it contains the base64 image
+    it('should not submit if the form is invalid', () => {
+        component.profileForm.controls['firstName'].setValue('');
+        component.onSubmit();
+        expect(userService.updateUserProfile).not.toHaveBeenCalled();
     });
 
-    it('should mark form as invalid when required fields are empty', () => {
-        expect(component.profileForm.invalid).toBeTruthy();
-
-        component.profileForm.get('firstName')?.setValue('John');
-        component.profileForm.get('lastName')?.setValue('Doe');
-
-        expect(component.profileForm.invalid).toBeFalsy();
-    });
-
-    it('should mark email field as invalid with invalid email format', () => {
-        component.profileForm.get('email')?.setValue('invalid_email');
-
-        expect(component.profileForm.get('email')?.invalid).toBeTruthy();
+    it('should clean up subscriptions on ngOnDestroy', () => {
+        const subNextSpy = spyOn(component.sub$, 'next');
+        const subCompleteSpy = spyOn(component.sub$, 'complete');
+        component.ngOnDestroy();
+        expect(subNextSpy).toHaveBeenCalledWith(null);
+        expect(subCompleteSpy).toHaveBeenCalled();
     });
 });
